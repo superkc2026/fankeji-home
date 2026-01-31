@@ -48,7 +48,7 @@ export default function FanKeJiPortal() {
   const tools = [
     {
       id: 1,
-      name: "讨债小助手",
+      name: "有借有还",
       slogan: "让还钱变得体面",
       desc: "基于高情商AI的催收工具，生成具有法律效力的电子承诺书。解决熟人借钱开口难、留证难的问题。",
       link: "https://debt.fankeji.com", // 指向子域名
