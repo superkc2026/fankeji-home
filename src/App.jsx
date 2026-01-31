@@ -1,287 +1,222 @@
-import React, { useState, useRef } from 'react';
-import { Plus, Trash2, Clock, Copy, AlertCircle, User, Calendar, ArrowUpRight, ArrowDownLeft, Edit3, CalendarPlus, PenTool, Image as ImageIcon, Sparkles, RefreshCw, Bell, BellRing, Users, Palette, Settings, Shield, Save, X, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Shield, 
+  EyeOff, 
+  Smartphone, 
+  Ghost, 
+  ArrowRight, 
+  Menu, 
+  X, 
+  Database,
+  Lock,
+  Heart
+} from 'lucide-react';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('list');
-  const [listType, setListType] = useState('incoming');
-  const [userProfile, setUserProfile] = useState({ name: '', idCard: '' });
+export default function FanKeJiPortal() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-  const [debts, setDebts] = useState([
-    { id: 1, type: 'incoming', name: '张三', amount: 500, dueDate: '2023-12-31', dueTime: '18:00', reason: '聚餐垫付', status: 'overdue', enableReminder: true, reminderType: '当天', addToCalendar: false },
-    { id: 2, type: 'incoming', name: '李四', amount: 2000, dueDate: '2025-12-01', dueTime: '12:00', reason: '周转借款', status: 'pending', enableReminder: false, reminderType: 'none', addToCalendar: false }
-  ]);
+  // 监听滚动，用于导航栏样式变化
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const [newDebt, setNewDebt] = useState({
-    type: 'incoming', name: '', amount: '', dueDate: '', dueTime: '12:00', reason: '', enableReminder: false, reminderType: '当天', addToCalendar: false
-  });
-
-  // 弹窗与交互状态
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [currentShareItem, setCurrentShareItem] = useState(null);
-  const [showReminderModal, setShowReminderModal] = useState(false);
-  const [editingReminderItem, setEditingReminderItem] = useState(null);
-  const [aiOptions, setAiOptions] = useState({ audience: '朋友', style: '正常' });
-  const [aiGeneratedMessage, setAiGeneratedMessage] = useState('');
-  const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
-
-  const [commitmentForm, setCommitmentForm] = useState({ 
-    myName: '', idCard: '', includePenalty: false, penalty: '承担相应的法律责任及所有催收费用' 
-  });
-  
-  const signatureCanvasRef = useRef(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [signatureData, setSignatureData] = useState(null);
-
-  const wxGreen = 'bg-[#07c160]';
-  const wxBg = 'bg-[#f5f5f5]';
-  const wxRed = 'bg-[#fa5151]';
-
-  // --- 安全的 DeepSeek 调用 (通过后端转发) ---
-  const callDeepSeek = async (systemPrompt, userPrompt) => {
-    try {
-      // 请求我们自己的后端接口 /api/chat，不再需要前端传 Key
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemPrompt: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }]
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || '请求失败');
-      }
-
-      return data.choices?.[0]?.message?.content || "";
-    } catch (e) {
-      alert(`AI 暂时不可用，请稍后再试。错误: ${e.message}`);
-      return null;
+  // 核心理念数据
+  const philosophy = [
+    {
+      icon: <EyeOff size={24} className="text-emerald-400" />,
+      title: "隐私护盾",
+      desc: "在这个裸奔的大数据时代，我们致力于构建个体的数字护城河，防止信息被无度索取。"
+    },
+    {
+      icon: <Ghost size={24} className="text-emerald-400" />,
+      title: "隐形助手",
+      desc: "让真实的你“隐身”。在必要的连接中，阻断不必要的骚扰。"
+    },
+    {
+      icon: <Database size={24} className="text-emerald-400" />,
+      title: "信息降噪",
+      desc: "算法想让你看它想让你看的，我们帮你筛选你想看的。屏蔽垃圾，回归价值。"
     }
-  };
+  ];
 
-  const handleAiRewrite = async (newAudience, newStyle) => {
-    const aud = newAudience || aiOptions.audience;
-    const sty = newStyle || aiOptions.style;
-    setAiOptions({ audience: aud, style: sty });
-    setIsGeneratingMessage(true);
-    const base = `${currentShareItem.name}，你借的${currentShareItem.amount}元（原因：${currentShareItem.reason}）该还了。`;
-    const res = await callDeepSeek("你是一个高情商催款助手。", `将此信息改写给"${aud}"，语气"${sty}"：${base}。要求100字内，直接返回正文。`);
-    if (res) setAiGeneratedMessage(res);
-    setIsGeneratingMessage(false);
-  };
-
-  // --- 业务逻辑 ---
-  const handleAddDebt = () => {
-    if (!newDebt.name || !newDebt.amount || !newDebt.dueDate) return alert('请完善信息');
-    const item = { ...newDebt, id: Date.now(), status: 'pending' };
-    setDebts([...debts, item]);
-    if (newDebt.addToCalendar) alert('📅 已尝试同步至系统日历事件');
-    setNewDebt({ type: 'incoming', name: '', amount: '', dueDate: '', dueTime: '12:00', reason: '', enableReminder: false, reminderType: '当天', addToCalendar: false });
-    setActiveTab('list');
-  };
-
-  const getStatusBadge = (date) => {
-    const today = new Date().toISOString().split('T')[0];
-    if (date < today) return <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">已逾期</span>;
-    if (date === today) return <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold">今日到期</span>;
-    return <span className="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-bold">待处理</span>;
-  };
-
-  // --- 签名逻辑 ---
-  const startDrawing = (e) => {
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
-    setIsDrawing(true);
-  };
-  const draw = (e) => {
-    if (!isDrawing) return;
-    const canvas = signatureCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
-    ctx.lineTo(x, y); ctx.stroke(); e.preventDefault();
-  };
-  const stopDrawing = () => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      const canvas = signatureCanvasRef.current;
-      if (canvas) setSignatureData(canvas.toDataURL());
+  // 工具箱数据
+  const tools = [
+    {
+      id: 1,
+      name: "讨债小助手",
+      slogan: "让还钱变得体面",
+      desc: "基于高情商AI的催收工具，生成具有法律效力的电子承诺书。解决熟人借钱开口难、留证难的问题。",
+      link: "https://debt.fankeji.com", // 指向子域名
+      icon: <Shield size={28} />,
+      status: "已上线",
+      bg: "bg-slate-800"
+    },
+    {
+      id: 2,
+      name: "寿比南山",
+      slogan: "关注生命质量",
+      desc: "一款关注个体健康与生命周期的工具，通过数据量化，辅助你做出更利于长寿的决策。",
+      link: "#", 
+      icon: <Heart size={28} />,
+      status: "开发中",
+      bg: "bg-slate-800"
+    },
+    {
+      id: 3,
+      name: "隐私黑盒",
+      slogan: "您的数字替身",
+      desc: "（概念产品）用于生成临时身份信息、临时号码，用于注册非必要实名的网络服务，防止信息泄露。",
+      link: "#",
+      icon: <Lock size={28} />,
+      status: "规划中",
+      bg: "bg-slate-900/50 border-dashed border border-slate-700"
     }
-  };
-  const clearSignature = () => {
-    const canvas = signatureCanvasRef.current;
-    if (canvas) {
-        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-        setSignatureData(null);
-    }
-  };
-
-  const generateMessage = () => {
-    if (aiGeneratedMessage && currentShareItem.type === 'incoming') return aiGeneratedMessage;
-    if (currentShareItem.type === 'outgoing') {
-        let text = `借款承诺书\n\n本人 ${commitmentForm.myName || '___'} (身份证号: ${commitmentForm.idCard || '__________________'}) 承诺于 ${currentShareItem.dueDate} 前向 ${currentShareItem.name} 偿还人民币 ${Number(currentShareItem.amount).toLocaleString()} 元。`;
-        if (commitmentForm.includePenalty) text += `\n\n违约责任：若未按时归还，本人愿${commitmentForm.penalty}。`;
-        text += `\n\n承诺人：${commitmentForm.myName || '___'}\n日期：${new Date().toLocaleDateString()}`;
-        return text;
-    }
-    return `${currentShareItem.name}，借给你的${currentShareItem.amount}元（原因：${currentShareItem.reason || '无备注'}）记得在${currentShareItem.dueDate} ${currentShareItem.dueTime}前还哦。`;
-  };
+  ];
 
   return (
-    <div className={`min-h-screen ${wxBg} flex flex-col items-center`}>
-      <div className="w-full max-w-md bg-white min-h-screen shadow-xl relative flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="bg-[#ededed] px-4 py-3 flex items-center justify-between border-b border-gray-300 sticky top-0 z-20">
-          <div className="font-semibold text-lg flex items-center gap-2">
-            债务小本本 <Zap size={14} className="text-yellow-500" fill="currentColor"/>
+    <div className="min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-emerald-500/30">
+      
+      {/* 顶部导航栏 - 响应式 */}
+      <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-[#0a0a0a]/90 backdrop-blur-md border-b border-white/5 py-4' : 'bg-transparent py-6'}`}>
+        <div className="max-w-6xl mx-auto px-6 flex justify-between items-center">
+          <div className="text-2xl font-bold tracking-tighter flex items-center gap-2">
+            <span className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-black font-black text-lg">F</span>
+            <span>FanKeJi<span className="text-emerald-500">.</span></span>
           </div>
-          <div className="text-[10px] text-gray-400 bg-gray-200 px-2 py-1 rounded-full">已接入 DeepSeek AI</div>
+          
+          {/* PC端菜单 */}
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+            <a href="#philosophy" className="hover:text-emerald-400 transition-colors">反科技理念</a>
+            <a href="#tools" className="hover:text-emerald-400 transition-colors">工具箱</a>
+            <a href="#about" className="hover:text-emerald-400 transition-colors">关于</a>
+          </div>
+
+          {/* 手机端菜单按钮 */}
+          <button className="md:hidden text-slate-300" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
+            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto pb-24">
-          {activeTab === 'list' && (
-            <div className="p-4 space-y-4">
-              <div className="flex bg-gray-200 p-1 rounded-lg">
-                <button onClick={() => setListType('incoming')} className={`flex-1 py-1.5 text-sm font-medium rounded-md ${listType === 'incoming' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500'}`}>待收回 (讨债)</button>
-                <button onClick={() => setListType('outgoing')} className={`flex-1 py-1.5 text-sm font-medium rounded-md ${listType === 'outgoing' ? 'bg-white text-red-500 shadow-sm' : 'text-gray-500'}`}>待偿还 (欠款)</button>
+        {/* 手机端下拉菜单 */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden absolute top-full left-0 w-full bg-[#111] border-b border-white/10 p-4 flex flex-col gap-4 text-center">
+            <a href="#philosophy" className="py-2 hover:text-emerald-400" onClick={() => setIsMobileMenuOpen(false)}>理念</a>
+            <a href="#tools" className="py-2 hover:text-emerald-400" onClick={() => setIsMobileMenuOpen(false)}>工具箱</a>
+          </div>
+        )}
+      </nav>
+
+      {/* Hero 区域：核心价值观 */}
+      <section className="relative pt-40 pb-20 md:pt-52 md:pb-32 px-6 overflow-hidden">
+        {/* 背景装饰：象征科技的线条，但比较暗淡，被控制住的感觉 */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in-up">
+          <div className="inline-block px-4 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-mono mb-8">
+            FANKEJI.COM · 反科技
+          </div>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-white">
+            非否定，<br className="md:hidden" />而<span className="text-emerald-400">善用</span>。
+          </h1>
+          <p className="text-lg md:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
+            我们不拒绝科技，但拒绝被科技奴役。
+            <br />
+            在这里，我们开发工具来对抗算法的围猎，保护个体的隐私，
+            <br className="hidden md:block"/>
+            让技术回归它最原始的初衷——服务于人，而非控制人。
+          </p>
+        </div>
+      </section>
+
+      {/* 理念三支柱 - 手机端单列，PC端三列 */}
+      <section id="philosophy" className="py-20 bg-[#0f0f0f]">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {philosophy.map((item, index) => (
+              <div key={index} className="p-8 rounded-2xl bg-[#161616] border border-white/5 hover:border-emerald-500/30 transition-all duration-300">
+                <div className="mb-4 bg-black/50 w-12 h-12 rounded-lg flex items-center justify-center border border-white/10">
+                  {item.icon}
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{item.title}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
               </div>
-              <div className={`${listType === 'incoming' ? wxGreen : wxRed} text-white rounded-2xl p-6 shadow-lg transition-all`}>
-                <div className="text-xs opacity-80 mb-1">{listType === 'incoming' ? '待收回总金额' : '待偿还总金额'}</div>
-                <div className="text-3xl font-bold">¥ {debts.filter(d => d.type === listType).reduce((s, i) => s + Number(i.amount), 0).toLocaleString()}</div>
-                <div className="mt-4 flex items-center gap-1 text-[10px] opacity-70"><Shield size={12}/> 账目公开透明，诚信走天下</div>
-              </div>
-              <div className="space-y-3">
-                {debts.filter(d => d.type === listType).length === 0 ? <div className="text-center py-10 text-gray-400 text-sm">暂无账单</div> : 
-                debts.filter(d => d.type === listType).map(item => (
-                  <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${item.type==='incoming'?'bg-green-500':'bg-red-400'}`}>{item.name.charAt(0)}</div>
-                        <div><div className="font-bold text-gray-800">{item.name}</div><div className="text-[10px] text-gray-400">{item.reason || '无备注'}</div></div>
-                      </div>
-                      <div className="text-right"><div className={`font-bold text-lg ${item.type==='incoming'?'text-green-600':'text-red-500'}`}>¥{Number(item.amount).toLocaleString()}</div>{getStatusBadge(item.dueDate)}</div>
-                    </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                        <div className="text-[10px] text-gray-400 flex items-center gap-1"><Clock size={10}/> {item.dueDate}</div>
-                        <div className="flex gap-2">
-                            <button onClick={() => {setEditingReminderItem({...item}); setShowReminderModal(true);}} className="p-1.5 text-gray-300 hover:text-purple-500"><Bell size={16}/></button>
-                            <button onClick={() => setDebts(debts.filter(d=>d.id!==item.id))} className="p-1.5 text-gray-300 hover:text-red-500"><Trash2 size={16}/></button>
-                            <button onClick={() => { setCurrentShareItem(item); setAiGeneratedMessage(''); setSignatureData(null); setCommitmentForm({myName: userProfile.name, idCard: userProfile.idCard, includePenalty: false, penalty: '承担相应的法律责任及所有催收费用'}); setShowShareModal(true); }} className={`${item.type === 'incoming' ? wxGreen : 'bg-red-500'} text-white text-xs px-4 py-1.5 rounded-full font-bold shadow-sm`}>{item.type === 'incoming' ? 'AI 讨债' : '签承诺书'}</button>
-                        </div>
-                    </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 工具箱展示区域 */}
+      <section id="tools" className="py-24 px-6 max-w-6xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">反科技 · 实验室</h2>
+            <p className="text-slate-400">正在孵化的反科技小工具，每一个都为了解决具体问题而生。</p>
+          </div>
+          <a href="#" className="text-emerald-400 text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all">
+            查看开发日志 <ArrowRight size={16} />
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {tools.map((tool) => (
+            <a 
+              key={tool.id} 
+              href={tool.link}
+              target={tool.link !== '#' ? "_blank" : "_self"}
+              className={`group relative overflow-hidden rounded-3xl border border-white/10 p-1 transition-all duration-300 hover:border-emerald-500/50 hover:-translate-y-1`}
+            >
+              <div className={`h-full ${tool.bg} rounded-[20px] p-6 flex flex-col`}>
+                <div className="flex justify-between items-start mb-6">
+                  <div className={`p-3 rounded-xl bg-black/40 text-white group-hover:text-emerald-400 transition-colors`}>
+                    {tool.icon}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'add' && (
-            <div className="p-4 space-y-6">
-              <h2 className="text-xl font-bold">记一笔新账</h2>
-              <div className="bg-white p-5 rounded-2xl border shadow-sm space-y-5">
-                <div className="grid grid-cols-2 gap-3">
-                    <button onClick={()=>setNewDebt({...newDebt, type:'incoming'})} className={`py-3 rounded-xl border-2 font-bold text-sm ${newDebt.type==='incoming'?'border-green-500 bg-green-50 text-green-700':'border-gray-100 text-gray-400'}`}>借给别人</button>
-                    <button onClick={()=>setNewDebt({...newDebt, type:'outgoing'})} className={`py-3 rounded-xl border-2 font-bold text-sm ${newDebt.type==='outgoing'?'border-red-500 bg-red-50 text-red-700':'border-gray-100 text-gray-400'}`}>欠别人钱</button>
+                  <span className={`px-2 py-1 text-[10px] rounded border ${tool.status === '已上线' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-slate-700/30 border-slate-600/30 text-slate-400'}`}>
+                    {tool.status}
+                  </span>
                 </div>
-                <div className="space-y-4">
-                    <div className="border-b pb-1"><label className="text-[10px] text-gray-400 block ml-1">对方姓名</label><input type="text" placeholder="输入真实姓名" className="w-full p-2 outline-none font-medium" value={newDebt.name} onChange={e=>setNewDebt({...newDebt, name: e.target.value})} /></div>
-                    <div className="border-b pb-1"><label className="text-[10px] text-gray-400 block ml-1">金额 (元)</label><input type="number" placeholder="0.00" className="w-full p-2 outline-none text-2xl font-bold" value={newDebt.amount} onChange={e=>setNewDebt({...newDebt, amount: e.target.value})} /></div>
-                    <div className="border-b pb-1"><label className="text-[10px] text-gray-400 block ml-1">约定还款时间</label><div className="flex gap-2"><input type="date" className="flex-1 p-2 outline-none text-sm" value={newDebt.dueDate} onChange={e=>setNewDebt({...newDebt, dueDate: e.target.value})} /><input type="time" className="w-24 p-2 outline-none text-sm text-gray-500" value={newDebt.dueTime} onChange={e=>setNewDebt({...newDebt, dueTime: e.target.value})} /></div></div>
-                    <div className="border-b pb-1"><label className="text-[10px] text-gray-400 block ml-1">原因备注</label><input type="text" placeholder="例如：聚餐垫付" className="w-full p-2 outline-none text-sm" value={newDebt.reason} onChange={e=>setNewDebt({...newDebt, reason: e.target.value})} /></div>
-                </div>
-                <button onClick={handleAddDebt} className={`w-full ${newDebt.type==='incoming'?wxGreen:'bg-red-500'} text-white py-4 rounded-2xl font-bold shadow-lg`}>保存账单</button>
-              </div>
-            </div>
-          )}
 
-          {activeTab === 'profile' && (
-            <div className="p-4 space-y-5">
-              <h2 className="text-xl font-bold px-1">设置与资产</h2>
-              <div className="bg-gray-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                <PieChart className="absolute -right-4 -top-4 opacity-10 w-24 h-24" />
-                <div className="text-[10px] opacity-50 mb-1">当前净资产 (借出-欠款)</div>
-                <div className="text-2xl font-bold mb-4">¥ {(debts.filter(d=>d.type==='incoming').reduce((s,i)=>s+Number(i.amount),0) - debts.filter(d=>d.type==='outgoing').reduce((s,i)=>s+Number(i.amount),0)).toLocaleString()}</div>
+                <h3 className="text-xl font-bold text-white mb-1">{tool.name}</h3>
+                <p className="text-xs text-emerald-500/80 font-mono mb-3">{tool.slogan}</p>
+                <p className="text-sm text-slate-400 leading-relaxed mb-8 flex-1">
+                  {tool.desc}
+                </p>
+
+                <div className="flex items-center text-sm font-bold text-white group-hover:text-emerald-400 transition-colors mt-auto">
+                  {tool.status === '已上线' ? '立即使用' : '了解更多'} 
+                  <ArrowRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                </div>
               </div>
-              <div className="bg-white p-5 rounded-2xl border shadow-sm space-y-4">
-                <div className="flex items-center gap-2 font-bold text-gray-700 border-b pb-2"><User size={18} className="text-blue-500"/> 身份信息预设</div>
-                <input type="text" placeholder="我的真实姓名" className="w-full p-2 border rounded-lg text-sm" value={userProfile.name} onChange={e=>setUserProfile({...userProfile, name: e.target.value})} />
-                <input type="text" placeholder="我的身份证号" className="w-full p-2 border rounded-lg text-sm" value={userProfile.idCard} onChange={e=>setUserProfile({...userProfile, idCard: e.target.value})} />
-              </div>
-              <div className="text-center text-[10px] text-gray-400 mt-4">DeepSeek AI 服务已就绪 · 由反科技提供支持</div>
-            </div>
-          )}
+            </a>
+          ))}
         </div>
+      </section>
 
-        {/* Footer */}
-        <div className="bg-white border-t flex justify-around py-3 absolute bottom-0 w-full z-20">
-          <button onClick={() => setActiveTab('list')} className={`flex flex-col items-center gap-1 ${activeTab === 'list' ? 'text-green-600 font-bold' : 'text-gray-400'}`}><Clock size={22} /><span className="text-[10px]">账本</span></button>
-          <button onClick={() => setActiveTab('add')} className="flex items-center justify-center -mt-8"><div className={`${wxGreen} w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg border-4 border-[#f5f5f5]`}><Plus size={30}/></div></button>
-          <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center gap-1 ${activeTab === 'profile' ? 'text-green-600 font-bold' : 'text-gray-400'}`}><Settings size={22} /><span className="text-[10px]">设置</span></button>
-        </div>
-
-        {/* Reminder Modal */}
-        {showReminderModal && editingReminderItem && (
-            <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-                <div className="bg-white w-full max-w-sm rounded-3xl p-6 space-y-5 animate-fade-in-up">
-                    <div className="flex justify-between items-center border-b pb-2 font-bold text-gray-700"><span>提醒管理</span><button onClick={()=>setShowReminderModal(false)}><X/></button></div>
-                    <div className="flex justify-between items-center"><span className="text-sm font-medium">微信服务通知</span><input type="checkbox" checked={editingReminderItem.enableReminder} onChange={e=>setEditingReminderItem({...editingReminderItem, enableReminder: e.target.checked})} className="w-6 h-6 accent-purple-600" /></div>
-                    <button onClick={()=>{ setDebts(debts.map(d=>d.id===editingReminderItem.id?editingReminderItem:d)); setShowReminderModal(false); }} className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold">保存设置</button>
-                </div>
-            </div>
-        )}
-
-        {/* Share Modal */}
-        {showShareModal && currentShareItem && (
-          <div className="absolute inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl animate-fade-in-up flex flex-col relative">
-                <div className="p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-                    <span className="font-bold text-gray-700">{currentShareItem.type === 'incoming' ? 'AI 高情商讨债助手' : '借款承诺书预览'}</span>
-                    <button onClick={() => setShowShareModal(false)} className="text-gray-400 text-2xl px-2">&times;</button>
-                </div>
-                <div className="p-5 space-y-4">
-                    {currentShareItem.type === 'incoming' ? (
-                        <div className="space-y-4">
-                            <div><label className="text-[10px] text-gray-400 block mb-2 font-bold">接收对象：</label><div className="grid grid-cols-3 gap-2">{['朋友', '同事', '同学', '亲属', '领导', '下属'].map(a => <button key={a} onClick={() => handleAiRewrite(a, null)} className={`py-2 text-xs rounded-lg border ${aiOptions.audience === a ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold' : 'bg-white text-gray-600'}`}>{a}</button>)}</div></div>
-                            <div><label className="text-[10px] text-gray-400 block mb-2 font-bold">语气风格：</label><div className="grid grid-cols-3 gap-2">{['正常', '幽默', '绿茶', '古风', '发疯文学'].map(s => <button key={s} onClick={() => handleAiRewrite(null, s)} className={`py-2 text-xs rounded-lg border ${aiOptions.style === s ? 'bg-pink-50 border-pink-500 text-pink-700 font-bold' : 'bg-white text-gray-600'}`}>{s}</button>)}</div></div>
-                        </div>
-                    ) : (
-                        <div className="space-y-4 bg-blue-50 p-4 rounded-2xl border border-blue-100">
-                            <input type="text" placeholder="承诺人姓名" className="w-full p-2 rounded-lg border border-blue-200 text-sm" value={commitmentForm.myName} onChange={e=>setCommitmentForm({...commitmentForm, myName: e.target.value})} />
-                            <input type="text" placeholder="身份证号" className="w-full p-2 rounded-lg border border-blue-200 text-sm" value={commitmentForm.idCard} onChange={e=>setCommitmentForm({...commitmentForm, idCard: e.target.value})} />
-                            <div className="flex items-center gap-2"><input type="checkbox" id="penalty" checked={commitmentForm.includePenalty} onChange={e=>setCommitmentForm({...commitmentForm, includePenalty: e.target.checked})} /><label htmlFor="penalty" className="text-xs text-gray-700">添加延期还款违约责任</label></div>
-                            {commitmentForm.includePenalty && <textarea className="w-full p-2 text-xs rounded-lg border border-blue-200 h-16" placeholder="输入违约责任..." value={commitmentForm.penalty} onChange={e=>setCommitmentForm({...commitmentForm, penalty: e.target.value})} />}
-                        </div>
-                    )}
-                    <div className="bg-[#f7f7f7] p-5 rounded-2xl text-sm min-h-[140px] text-gray-700 leading-relaxed border relative shadow-inner">
-                        {isGeneratingMessage ? <div className="flex items-center gap-2 text-indigo-500 justify-center h-24"><RefreshCw size={14} className="animate-spin" /> DeepSeek 构思中...</div> : <div className="whitespace-pre-wrap font-serif">{generateMessage()}{signatureData && currentShareItem.type === 'outgoing' && <div className="mt-6 text-right"><img src={signatureData} className="h-10 inline-block mix-blend-multiply" alt="签名预览" /></div>}</div>}
-                    </div>
-                    {currentShareItem.type === 'outgoing' && (
-                        <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm">
-                            <div className="text-[10px] text-gray-400 p-2 border-b flex justify-between items-center bg-gray-50"><span>请在下方手写签名：</span><button onClick={clearSignature} className="text-red-500 font-bold px-2 py-1 rounded">清除</button></div>
-                            <canvas ref={signatureCanvasRef} width={350} height={140} className="w-full touch-none cursor-crosshair" onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}/>
-                        </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                        <button onClick={() => { const t = generateMessage(); const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('已复制'); }} className={`py-4 ${wxGreen} text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95`}><Copy size={18}/> 复制</button>
-                        <button onClick={() => alert('图片生成功能将在正式版上线')} className="py-4 bg-gray-800 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95"><ImageIcon size={18}/> 生成图片</button>
-                    </div>
-                </div>
-            </div>
+      {/* 底部 Footer */}
+      <footer className="py-12 border-t border-white/5 bg-[#050505]">
+        <div className="max-w-6xl mx-auto px-6 text-center md:text-left flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+          <div className="mb-4 md:mb-0">
+            <p>&copy; {new Date().getFullYear()} FanKeJi.com</p>
+            <p className="text-xs mt-1 text-slate-600">非否定而善用 · 技术服务于人</p>
           </div>
-        )}
-      </div>
-      <style>{`@keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } } .animate-fade-in { animation: fade-in 0.3s ease-out; } .animate-fade-in-up { animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1); }`}</style>
+          <div className="flex gap-6">
+            <a href="#" className="hover:text-emerald-400 transition-colors">隐私协议</a>
+            <a href="#" className="hover:text-emerald-400 transition-colors">联系我们</a>
+          </div>
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes fade-in-up { 
+          from { opacity: 0; transform: translateY(20px); } 
+          to { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-fade-in-up { animation: fade-in-up 0.8s ease-out forwards; }
+      `}</style>
     </div>
   );
 }
