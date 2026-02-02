@@ -60,10 +60,10 @@ export default function FanKeJiPortal() {
       id: 2,
       name: "寿比南山",
       slogan: "关注生命质量",
-      desc: "一款关注个体健康与生命周期的工具，通过数据量化，辅助你做出更利于长寿的决策。",
-      link: "#", 
+      desc: "一款关注个体健康的工具。通过数据量化，监控你的身体健康并适时通知你的联系人。",
+      link: "https://life.fankeji.com",  // 指向子域名
       icon: <Heart size={28} />,
-      status: "开发中",
+      status: "已上线",
       bg: "bg-slate-800"
     },
     {
